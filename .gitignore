@@ -7,3 +7,4 @@
 data
 docker-compose-private-debug.yml
 files/
+.env
