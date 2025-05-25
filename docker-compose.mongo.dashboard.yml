@@ -1,7 +1,7 @@
 version: '3.4'
 
 services:
-    parse:
+    claimease-server:
         image: netreconlab/parse-hipaa:6.0.0-dashboard
         environment:
             CLUSTER_INSTANCES: 1
@@ -13,14 +13,18 @@ services:
             PARSE_SERVER_ENCRYPTION_KEY: 72F8F23D-FDDB-4792-94AE-72897F0688F9
             PARSE_SERVER_TRUST_PROXY: 'true'
             PARSE_SERVER_OBJECT_ID_SIZE: 32
-            PARSE_SERVER_DATABASE_URI: mongodb://${MONGO_PARSE_USER}:${MONGO_PARSE_PASSWORD}@db:${DB_MONGO_PORT}/${MONGO_PARSE_DB}
+            PARSE_SERVER_DATABASE_URI: mongodb://${MONGO_PARSE_USER}:${MONGO_PARSE_PASSWORD}@claimease-db:${DB_MONGO_PORT}/${MONGO_PARSE_DB}?authSource=admin
             PORT: ${PORT}
+            PARSE_SERVER_START_LIVEQUERY_SERVER: 'true'
+            PARSE_SERVER_LIVEQUERY_CLASSNAMES: 'RealTimeResponse'
+            PARSE_LIVEQUERY_SERVER_URL: http://claimease-server:${PORT}${MOUNT_PATH}
             PARSE_SERVER_MOUNT_PATH: ${MOUNT_PATH}
-            PARSE_SERVER_URL: http://parse:${PORT}${MOUNT_PATH}
-            PARSE_PUBLIC_SERVER_URL: http://localhost:${PORT}${MOUNT_PATH}
+            PARSE_SERVER_URL: http://claimease-server:${PORT}${MOUNT_PATH}
+            PARSE_PUBLIC_SERVER_URL: https://etcpm.ddns.net/${MOUNT_PATH}
             PARSE_SERVER_CLOUD: /parse-server/cloud/main.js
             PARSE_SERVER_MOUNT_GRAPHQL: 'false'
-            PARSE_SERVER_ALLOW_CLIENT_CLASS_CREATION: 'false' # Don't allow classes to be created on the client side. You can create classes by using ParseDashboard instead
+            PARSE_SERVER_ALLOW_CLIENT_CLASS_CREATION: 'true' # TURN THIS OFF WHEN WE GET TO PRODUCTION
+            PARSE_SERVER_ALLOW_ANONYMOUS_USERS: 'true' # TEMPORARY: Allow unauthenticated users to save objects. SET TO 'false' BEFORE ADDING PHI.
             PARSE_SERVER_ALLOW_CUSTOM_OBJECTID: 'true' # Required to be true for ParseCareKit
             PARSE_SERVER_ENABLE_SCHEMA_HOOKS: 'true'
             PARSE_SERVER_ENCODE_PARSE_OBJECT_IN_CLOUD_FUNCTION: 'true'
@@ -33,15 +37,15 @@ services:
             PARSE_SERVER_RATE_LIMIT_INCLUDE_PRIMARY_KEY: 'false'
             PARSE_SERVER_RATE_LIMIT_INCLUDE_INTERNAL_REQUESTS: 'false'
             PARSE_DASHBOARD_START: 'true'
-            PARSE_DASHBOARD_APP_NAME: Parse HIPAA
+            PARSE_DASHBOARD_APP_NAME: ClaimEase Parse HIPAA
             PARSE_DASHBOARD_SERVER_URL: http://localhost:${PORT}${MOUNT_PATH}
-            PARSE_DASHBOARD_USERNAMES: parse, parseRead
-            PARSE_DASHBOARD_USER_PASSWORDS: 1234, 1234
+            PARSE_DASHBOARD_USERNAMES: admin
+            PARSE_DASHBOARD_USER_PASSWORDS: 3071Nexus4!
             PARSE_DASHBOARD_USER_PASSWORD_ENCRYPTED: 'false'
             PARSE_DASHBOARD_ALLOW_INSECURE_HTTP: 1
             PARSE_DASHBOARD_COOKIE_SESSION_SECRET: AB8849B6-D725-4A75-AA73-AB7103F0363F # This should be constant across all deployments on your system
             PARSE_DASHBOARD_MOUNT_PATH: /dashboard # This needs to be exactly what you plan it to be behind the proxy, i.e. If you want to access cs.uky.edu/dashboard it should be "/dashboard"
-            PARSE_VERBOSE: 'false'
+            PARSE_VERBOSE: 'true'
         ports:
             - 127.0.0.1:${PORT}:${PORT}
         volumes:
@@ -49,9 +53,9 @@ services:
             - ./parse/cloud:/parse-server/cloud
         restart: always
         depends_on:
-            - db
+            - claimease-db
         command: ["node", "index.js"]
-    db:
+    claimease-db:
         image: netreconlab/hipaa-mongo:latest
         environment:
             MONGO_INITDB_ROOT_USERNAME: ${MONGO_PARSE_USER}
@@ -60,10 +64,9 @@ services:
         restart: always
         ports:
             - 127.0.0.1:${DB_MONGO_PORT}:${DB_MONGO_PORT}
-        # Uncomment volumes below to persist postgres data. Make sure to change directory to store data locally
-        #volumes:
-        #  - /My/Encrypted/Drive/db:/data/db
-        #  - /My/Encrypted/Drive/logs/:/logs
+        volumes:
+            - /Volumes/Parse-Server/Database:/data/db
+            - /Volumes/Parse-Server/Logs:/logs
     #scan:
     #    image: clamav/clamav:latest
     #    restart: always
